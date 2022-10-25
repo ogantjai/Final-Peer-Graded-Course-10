@@ -21,3 +21,91 @@ https://eu-de.dataplatform.cloud.ibm.com/analytics/notebooks/v2/174a86df-8dbd-43
 #Interactive Folium 
 https://eu-de.dataplatform.cloud.ibm.com/analytics/notebooks/v2/9440f972-1fc7-4ecd-b4e2-f981d6bb3e5d/view?access_token=3a2102f9b6c5d7035e25ea10f699f57dc704b16f56fd32490a2f4ef02c863580
 
+#Plotly
+
+import pandas as pd
+import dash
+import dash_html_components as html
+import dash_core_components as dcc
+from dash.dependencies import Input, Output
+import plotly.express as px
+
+
+spacex_df = pd.read_csv("spacex_launch_dash.csv")
+max_payload = spacex_df['Payload Mass (kg)'].max()
+min_payload = spacex_df['Payload Mass (kg)'].min()
+
+
+app = dash.Dash(__name__)
+
+
+app.layout = html.Div(children=[html.H1('SpaceX Launch Records Dashboard',
+                                        style={'textAlign': 'center', 'color': '#503D36',
+                                               'font-size': 40}),
+                               
+                                dcc.Dropdown(id='site-dropdown',
+                                            options=[
+                                                         {'label': 'ALL SITES', 'value': 'ALL'},
+                                                         {'label': 'site1', 'value': 'site1'},
+                                                    ],
+                                            value='ALL',
+                                            placeholder='Select a Launch Site here', 
+                                            searchable=True),
+                                html.Br(),
+                                
+                               
+                                html.Div(dcc.Graph(id='success-pie-chart')),
+                                html.Br(),
+
+                                html.P("Payload range (Kg):"),
+                             
+                               
+                                 dcc.RangeSlider(id='payload-slider',
+                                                min=0,max=10000,step=1000,
+                                                value=[min_payload,max_payload],
+                                                marks={0: '0', 100:'100'}),
+                               
+                                html.Div(dcc.Graph(id='success-payload-scatter-chart')),
+                                ])
+
+
+@app.callback(
+    Output(component_id='success-pie-chart', component_property='figure'),
+    Input(component_id='site-dropdown', component_property='value'))
+
+def build_graph(site_dropdown):
+    if site_dropdown == 'ALL':
+        piechart = px.pie(data_frame = spacex_df, names='Launch Site', values='class' ,title='Total Launches for All Sites')
+        return piechart
+    else:
+        #specific_df = spacex_df['Launch Site']
+        specific_df=spacex_df.loc[spacex_df['Launch Site'] == site_dropdown]
+        piechart = px.pie(data_frame = specific_df, names='class',title='Total Launch for a Specific Site')
+        return piechart
+
+@app.callback(
+    Output(component_id='success-payload-scatter-chart', component_property='figure'),
+    [Input(component_id='site-dropdown', component_property='value'),
+    Input(component_id='payload-slider', component_property='value')])
+
+def update_graph(site_dropdown, payload_slider):
+    if site_dropdown == 'ALL':
+        filtered_data = spacex_df[(spacex_df['Payload Mass (kg)']>=payload_slider[0])
+        &(spacex_df['Payload Mass (kg)']<=payload_slider[1])]
+        scatterplot = px.scatter(data_frame=filtered_data, x="Payload Mass (kg)", y="class", 
+        color="Booster Version Category")
+        return scatterplot
+    else:
+        specific_df=spacex_df.loc[spacex_df['Launch Site'] == site_dropdown]
+        filtered_data = specific_df[(specific_df['Payload Mass (kg)']>=payload_slider[0])
+        &(spacex_df['Payload Mass (kg)']<=payload_slider[1])]
+        scatterplot = px.scatter(data_frame=filtered_data, x="Payload Mass (kg)", y="class", 
+        color="Booster Version Category")
+        return scatterplot
+
+
+if __name__ == '__main__':
+    app.run_server()
+
+    
+
